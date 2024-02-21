@@ -16,11 +16,13 @@
 # limitations under the License.
 #
 
+import streamdal, os
 from confluent_kafka.cimpl import Producer as _ProducerImpl
 from .serialization import (MessageField,
                             SerializationContext)
 from .error import (KeySerializationError,
-                    ValueSerializationError)
+                    ValueSerializationError,
+                    ProduceError) # Streamdal change: import "ProduceError"
 
 
 class SerializingProducer(_ProducerImpl):
@@ -71,6 +73,13 @@ class SerializingProducer(_ProducerImpl):
 
         self._key_serializer = conf_copy.pop('key.serializer', None)
         self._value_serializer = conf_copy.pop('value.serializer', None)
+
+        # Begin streamdal shim
+        if os.getenv("STREAMDAL_URL", "") != "":
+            self.streamdal = streamdal.StreamdalClient(streamdal.StreamdalConfig(
+                client_type=streamdal.CLIENT_TYPE_SHIM,
+            ))
+        # End streamdal shim
 
         super(SerializingProducer, self).__init__(conf_copy)
 
@@ -125,6 +134,23 @@ class SerializingProducer(_ProducerImpl):
 
             KafkaException: For all other errors
         """
+
+        # Begin streamdal shim
+        if isinstance(self.streamdal, streamdal.StreamdalClient):
+            res = self.streamdal.process(
+                streamdal.ProcessRequest(
+                    operation_type=streamdal.OPERATION_TYPE_PRODUCER,
+                    operation_name=value,
+                    component_name="kafka",
+                    data=value,
+                )
+            )
+
+            if res.status == streamdal.EXEC_STATUS_ERROR:
+                raise ProduceError(res.status_message)
+
+            value = res.data
+        # End streamdal shim
 
         ctx = SerializationContext(topic, MessageField.KEY, headers)
         if self._key_serializer is not None:

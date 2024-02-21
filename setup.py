@@ -12,6 +12,7 @@ ext_dir = os.path.join(mod_dir, 'src')
 INSTALL_REQUIRES = [
     'futures;python_version<"3.2"',
     'enum34;python_version<"3.4"',
+    'streamdal==0.1.8'
 ]
 
 TEST_REQUIRES = [
@@ -67,7 +68,6 @@ trove_classifiers = [
     'Intended Audience :: Developers',
     'License :: OSI Approved :: Apache Software License',
     'Programming Language :: Python',
-    'Programming Language :: Python :: 2.7',
     'Programming Language :: Python :: 3',
     'Topic :: Software Development :: Libraries :: Python Modules',
 ]

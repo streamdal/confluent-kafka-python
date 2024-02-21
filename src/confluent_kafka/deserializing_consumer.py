@@ -16,6 +16,7 @@
 # limitations under the License.
 #
 
+import streamdal, os
 from confluent_kafka.cimpl import Consumer as _ConsumerImpl
 from .error import (ConsumeError,
                     KeyDeserializationError,
@@ -75,6 +76,13 @@ class DeserializingConsumer(_ConsumerImpl):
         self._key_deserializer = conf_copy.pop('key.deserializer', None)
         self._value_deserializer = conf_copy.pop('value.deserializer', None)
 
+        # Begin streamdal shim
+        if os.getenv("STREAMDAL_URL", "") != "":
+            self.streamdal = streamdal.StreamdalClient(streamdal.StreamdalConfig(
+                client_type=streamdal.CLIENT_TYPE_SHIM,
+            ))
+        # End streamdal shim
+
         super(DeserializingConsumer, self).__init__(conf_copy)
 
     def poll(self, timeout=-1):
@@ -121,6 +129,24 @@ class DeserializingConsumer(_ConsumerImpl):
 
         msg.set_key(key)
         msg.set_value(value)
+
+        # Begin streamdal shim
+        if isinstance(self.streamdal, streamdal.StreamdalClient):
+            res = self.streamdal.process(
+                streamdal.ProcessRequest(
+                    operation_type=streamdal.OPERATION_TYPE_CONSUMER,
+                    operation_name=msg.topic,
+                    component_name="kafka",
+                    data=value,
+                )
+            )
+
+            if res.status == streamdal.EXEC_STATUS_ERROR:
+                raise ConsumeError(res.status_message, kafka_message="")
+
+            msg.set_value(res.data)
+        # End streamdal shim
+
         return msg
 
     def consume(self, num_messages=1, timeout=-1):
