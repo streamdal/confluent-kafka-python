@@ -72,20 +72,25 @@ class DeserializingConsumer(_ConsumerImpl):
     """  # noqa: E501
 
     def __init__(self, conf):
+        print("CONSUMER INIT")
         conf_copy = conf.copy()
         self._key_deserializer = conf_copy.pop('key.deserializer', None)
         self._value_deserializer = conf_copy.pop('value.deserializer', None)
 
         # Begin streamdal shim
+        print("STREAMDAL INIT")
         if os.getenv("STREAMDAL_URL", "") != "":
+            print("INITIALIZING STREAMDAL")
             self.streamdal = streamdal.StreamdalClient(streamdal.StreamdalConfig(
                 client_type=streamdal.CLIENT_TYPE_SHIM,
             ))
+            print("AFTER STREAMDAL")
         # End streamdal shim
 
         super(DeserializingConsumer, self).__init__(conf_copy)
 
     def poll(self, timeout=-1):
+        print("HERE ------")
         """
         Consume messages and calls callbacks.
 
